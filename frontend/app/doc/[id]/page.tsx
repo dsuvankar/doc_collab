@@ -64,6 +64,7 @@ export default function DocumentEditor() {
   }, [token, isSidebarOpen]);
 
   const fetchVersions = async () => {
+    if (!token) return;
     try {
       const json = await docService.getVersions(docId, token);
       setVersions(json.data);
@@ -81,6 +82,7 @@ export default function DocumentEditor() {
   };
 
   const handleRestore = async (versionId: number) => {
+    if (!token) return;
     try {
       await docService.restoreVersion(docId, versionId, token);
       toast.success("Document restored to past version!");
@@ -90,6 +92,7 @@ export default function DocumentEditor() {
   };
 
   const handleDeleteVersion = async (versionId: number) => {
+    if (!token) return;
     // Optimistic delete
     setVersions((prev) => prev.filter((v) => v.id !== versionId));
     try {
