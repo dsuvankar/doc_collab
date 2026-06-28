@@ -32,14 +32,14 @@ export default function DocumentEditor() {
   
   // Yjs Hooks
   const { ydoc, ytext, isLoaded } = useYDoc(docId);
-  const { isOnline, isReconnecting, connectionError, saveVersion } = useSync(docId, ydoc, () => {
+  const { isOnline, isReconnecting, connectionError, saveVersion, syncKey } = useSync(docId, ydoc, () => {
     // When someone saves a version, instantly refetch history if panel is open!
     if (isSidebarOpenRef.current) fetchVersions();
   });
   
   // Textarea Hook
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  useTextarea(textareaRef, ytext, isLoaded);
+  useTextarea(textareaRef, ytext, isLoaded, syncKey);
 
   // Version History State
   const [versions, setVersions] = useState<Version[]>([]);

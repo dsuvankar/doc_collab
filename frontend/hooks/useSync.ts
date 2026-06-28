@@ -12,6 +12,8 @@ export function useSync(
   const [isOnline, setIsOnline] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  // Increments each time load_doc fully processes — used to trigger a textarea re-sync
+  const [syncKey, setSyncKey] = useState(0);
 
   // Debounce isConnected to avoid unnecessary Yjs handler teardowns
   const [isConnected, setIsConnected] = useState(false);
@@ -19,6 +21,7 @@ export function useSync(
   // Debounce isOnline to avoid status badge flicker
   const onlineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const isApplyingSnapshotRef = useRef(false);
 
   // Keep refs for socket handlers
   const ydocRef = useRef<Y.Doc | null>(ydoc);
@@ -59,6 +62,8 @@ export function useSync(
       }
     };
 
+    const hasConnectedRef = { current: false };
+
     socket.on("connect", () => {
       // Cancel timers
       cancelDisconnectTimer();
@@ -67,6 +72,14 @@ export function useSync(
       setIsReconnecting(false);
       setIsConnected(true);
       setConnectionError(null);
+
+      if (hasConnectedRef.current) {
+        // Reconnect after going offline — reload so the merged doc state is fresh
+        window.location.reload();
+        return;
+      }
+
+      hasConnectedRef.current = true;
       socket.emit("join_doc", docId);
     });
 
@@ -112,10 +125,9 @@ export function useSync(
       console.error("[useSync] Socket connect_error:", message);
     });
 
-    socket.on("reconnect", () => {
-      // Re-join document room
-      socket.emit("join_doc", docId);
-    });
+    // NOTE: socket.on("connect") already fires on every reconnect in socket.io v4.
+    // A separate "reconnect" handler would cause a duplicate join_doc + load_doc,
+    // leading to a spurious second push_update that corrupts offline sync.
 
     socket.on("version_saved", () => {
       onVersionSavedRef.current?.();
@@ -123,34 +135,54 @@ export function useSync(
 
     // Apply server snapshot and push local edits
     socket.on("load_doc", (serverSnapshot: Uint8Array) => {
+      console.log("[useSync] load_doc called, length:", serverSnapshot.byteLength || serverSnapshot.length || serverSnapshot);
       const doc = ydocRef.current;
-      if (!doc) return;
+      if (!doc) {
+        console.warn("[useSync] load_doc: No ydocRef.current!");
+        return;
+      }
 
-      // 1. Decode snapshot
-      const snapshotBytes = new Uint8Array(serverSnapshot);
+     
+      const snapshotBytes = serverSnapshot instanceof Uint8Array ? serverSnapshot : new Uint8Array(serverSnapshot);
 
-      // 2. Compute server state vector
+      // Compute server state vector
       const serverDoc = new Y.Doc();
       Y.applyUpdate(serverDoc, snapshotBytes);
       const serverStateVector = Y.encodeStateVector(serverDoc);
 
-      // 3. Apply server snapshot
-      Y.applyUpdate(doc, snapshotBytes, socket);
-
-      // 4. Push local edits
+      // Compute offline diff BEFORE applying server snapshot
       const offlineDiff = Y.encodeStateAsUpdate(doc, serverStateVector);
-      // Emit diff if not empty
+
+      // Apply server snapshot 
+      
+      isApplyingSnapshotRef.current = true;
+      Y.applyUpdate(doc, snapshotBytes, socket);
+      isApplyingSnapshotRef.current = false;
+
+      // Push offline edits to server
       if (offlineDiff.length > 2) {
         console.log(`[useSync] Pushing ${offlineDiff.length} bytes of offline edits to server`);
-        socket.emit("push_update", { docId, update: offlineDiff });
+        socket.emit("push_update", { docId, update: Array.from(offlineDiff) });
       }
+
+     
+      setSyncKey((k) => k + 1);
     });
 
 
     socket.on("receive_update", (update: Uint8Array) => {
+      console.log("[useSync] receive_update called, length:", update.byteLength || update.length || update);
       const doc = ydocRef.current;
-      if (!doc) return;
-      Y.applyUpdate(doc, new Uint8Array(update), socket);
+      if (!doc) {
+        console.warn("[useSync] receive_update: No ydocRef.current!");
+        return;
+      }
+      try {
+        const updateArr = update instanceof Uint8Array ? update : new Uint8Array(update);
+        Y.applyUpdate(doc, updateArr, socket);
+      } catch (err) {
+        console.error("[useSync] Failed to apply update:", err);
+      }
     });
 
     // Reconnect when tab becomes visible
@@ -173,16 +205,17 @@ export function useSync(
       setIsReconnecting(false);
       setConnectionError(null);
     };
-  }, [docId]); // ← ydoc intentionally excluded
-
+  }, [docId]); 
   // Yjs update handler effect
   useEffect(() => {
     const socket = socketRef.current;
     if (!ydoc || !socket || !isConnected) return;
 
     const handleUpdate = (update: Uint8Array, origin: any) => {
+      // Skip if we're applying the server snapshot in load_doc
+      if (isApplyingSnapshotRef.current) return;
       if (origin !== socket) {
-        socket.emit("push_update", { docId, update });
+        socket.emit("push_update", { docId, update: Array.from(update) });
       }
     };
 
@@ -198,5 +231,5 @@ export function useSync(
     }
   };
 
-  return { isOnline, isReconnecting, connectionError, saveVersion };
+  return { isOnline, isReconnecting, connectionError, saveVersion, syncKey };
 }

@@ -3,7 +3,12 @@
 import { useEffect, RefObject } from "react";
 import * as Y from "yjs";
 
-export function useTextarea(ref: RefObject<HTMLTextAreaElement | null>, ytext: Y.Text | null, isLoaded: boolean) {
+export function useTextarea(
+  ref: RefObject<HTMLTextAreaElement | null>,
+  ytext: Y.Text | null,
+  isLoaded: boolean,
+  syncTrigger?: number   // incremented by useSync after each load_doc to force a re-sync
+) {
   useEffect(() => {
     if (!ref.current || !ytext || !isLoaded) return;
 
@@ -68,5 +73,5 @@ export function useTextarea(ref: RefObject<HTMLTextAreaElement | null>, ytext: Y
       ytext.unobserve(observer);
       textarea.removeEventListener("input", handleInput);
     };
-  }, [ref, ytext, isLoaded]);
+  }, [ref, ytext, isLoaded, syncTrigger]);
 }

@@ -35,7 +35,7 @@ export function registerDocHandlers(io: Server, socket: Socket) {
       console.log(`[join_doc] docId=${docId} rawUpdates=${rawUpdates.length} mergedBytes=${mergedUpdate.length}`);
 
       // Send merged snapshot
-      socket.emit("load_doc", mergedUpdate);
+      socket.emit("load_doc", Array.from(mergedUpdate));
     } catch (err) {
       console.error("Error joining doc:", err);
     }
@@ -43,24 +43,38 @@ export function registerDocHandlers(io: Server, socket: Socket) {
 
   socket.on("push_update", async (payload: any) => {
     try {
+      console.log("[push_update] Received payload from", socket.id);
       const parsed = PushUpdateSchema.safeParse(payload);
       if (!parsed.success) {
+        console.error("[push_update] Invalid payload:", parsed.error);
         socket.emit("error", "INVALID_PAYLOAD");
         return;
       }
       const { docId, update } = parsed.data;
 
+      let updateBytes = update;
+      if (update && update.type === 'Buffer' && Array.isArray(update.data)) {
+        updateBytes = Buffer.from(update.data);
+      } else if (update instanceof ArrayBuffer) {
+        updateBytes = Buffer.from(update);
+      } else if (!Buffer.isBuffer(update) && !(update instanceof Uint8Array)) {
+        // Fallback for objects/arrays that are raw bytes
+        updateBytes = Buffer.from(update);
+      }
+
       // Validate update
       try {
         const ydoc = new Y.Doc();
-        Y.applyUpdate(ydoc, update);
+        Y.applyUpdate(ydoc, updateBytes);
       } catch (err) {
+        console.error("[push_update] Corrupt update:", err);
         socket.emit("error", "CORRUPT_UPDATE");
         return;
       }
 
-      await saveUpdate(user.userId, docId, Buffer.from(update));
-      socket.to(docId).emit("receive_update", update);
+      await saveUpdate(user.userId, docId, updateBytes);
+      console.log(`[push_update] Saved and broadcasting ${updateBytes.length} bytes for docId=${docId}`);
+      socket.to(docId).emit("receive_update", Array.from(updateBytes));
     } catch (err) {
       console.error("Error pushing update:", err);
     }
