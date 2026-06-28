@@ -1,11 +1,11 @@
-name: Deploy Backend
+name: Deploy Frontend
 
 on:
   push:
     branches: [main]
     paths:
-      - 'backend/**'
-      - '.github/workflows/deploy-backend.yml'
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
 
 jobs:
   deploy:
@@ -21,7 +21,7 @@ jobs:
           script: |
             cd ~/doc_collab
             git pull origin main
-            cd backend
+            cd frontend
             npm install
             npm run build
-            pm2 restart docs-backend
+            pm2 restart docs-frontend
