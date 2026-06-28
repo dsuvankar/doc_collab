@@ -106,11 +106,32 @@ export default function DocumentEditor() {
 
   const handleShare = () => {
     const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      toast.success("Link copied to clipboard!");
-    }).catch(() => {
-      toast.error("Failed to copy link");
-    });
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        toast.success("Link copied to clipboard!");
+      }).catch(() => {
+        toast.error("Failed to copy link");
+      });
+    } else {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = url;
+        // Move it off-screen
+        textArea.style.position = "absolute";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        const successful = document.execCommand("copy");
+        document.body.removeChild(textArea);
+        if (successful) {
+          toast.success("Link copied to clipboard!");
+        } else {
+          toast.error("Failed to copy link");
+        }
+      } catch (err) {
+        toast.error("Failed to copy link");
+      }
+    }
   };
 
   if (!isAuthenticated) return null;
