@@ -7,27 +7,27 @@ import { logout } from "../store/features/authSlice";
 import { Button } from "../components/ui/button";
 import { FilePlus2, Loader2, LogOut } from "lucide-react";
 import { docService } from "../services/docService";
+import { authService } from "../services/authService";
 import { toast } from "sonner";
 
 export default function Dashboard() {
-  const { isAuthenticated, user, token } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     //check auth
-    if (isAuthenticated === false && token === null) {
+    if (!isLoading && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isAuthenticated, token, router]);
+  }, [isAuthenticated, isLoading, router]);
 
   const handleCreateDocument = async () => {
-    if (!token) return;
     setIsCreating(true);
 
     try {
-      const json = await docService.createDocument("Untitled Document", token);
+      const json = await docService.createDocument("Untitled Document");
 
       toast.success("Document created!");
       router.push(`/doc/${json.data.docId}`);
@@ -37,12 +37,13 @@ export default function Dashboard() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authService.logout();
     dispatch(logout());
     router.push("/login");
   };
 
-  if (!isAuthenticated) {
+  if (isLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />

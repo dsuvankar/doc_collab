@@ -3,14 +3,14 @@ import type { UserJWT } from '../../lib/types';
 
 interface AuthState {
   user: UserJWT | null;
-  token: string | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const initialState: AuthState = {
   user: null,
-  token: null,
   isAuthenticated: false,
+  isLoading: true, // starts loading to fetch /me on mount
 };
 
 const authSlice = createSlice({
@@ -19,19 +19,22 @@ const authSlice = createSlice({
   reducers: {
     setCredentials: (
       state,
-      action: PayloadAction<{ user: UserJWT; token: string }>
+      action: PayloadAction<{ user: UserJWT }>
     ) => {
       state.user = action.payload.user;
-      state.token = action.payload.token;
       state.isAuthenticated = true;
+      state.isLoading = false;
     },
     logout: (state) => {
       state.user = null;
-      state.token = null;
       state.isAuthenticated = false;
+      state.isLoading = false;
     },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
+    }
   },
 });
 
-export const { setCredentials, logout } = authSlice.actions;
+export const { setCredentials, logout, setLoading } = authSlice.actions;
 export default authSlice.reducer;

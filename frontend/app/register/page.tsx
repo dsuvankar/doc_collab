@@ -10,6 +10,8 @@ import { Input } from "../../components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../components/ui/card";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useEffect } from "react";
+import { useAppSelector } from "../../store/hooks";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -18,6 +20,13 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push("/");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +35,7 @@ export default function RegisterPage() {
     try {
       const json = await authService.register({ name, email, password });
 
-      dispatch(setCredentials({ user: json.data.user, token: json.data.token }));
+      dispatch(setCredentials({ user: json.data.user }));
       toast.success("Account created successfully!");
       router.push("/");
     } catch (err: any) {

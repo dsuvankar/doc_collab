@@ -19,6 +19,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       name: newUser.name,
     });
 
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+
     res.status(201).json({
       error: false,
       message: "User registered successfully",
@@ -27,8 +34,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           id: newUser.id,
           email: newUser.email,
           name: newUser.name,
-        },
-        token,
+        }
       }
     });
   } catch (error: any) {
@@ -67,6 +73,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       name: user.name,
     });
 
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+
     res.status(200).json({
       error: false,
       message: "Login successful",
@@ -75,12 +88,44 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           id: user.id,
           email: user.email,
           name: user.name,
-        },
-        token,
+        }
       }
     });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: true, message: "Internal server error during login", data: null });
   }
+};
+
+export const me = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as any).user; // Set by requireAuth middleware
+    if (!user) {
+      res.status(401).json({ error: true, message: "Not authenticated", data: null });
+      return;
+    }
+
+    res.status(200).json({
+      error: false,
+      message: "Authenticated",
+      data: {
+        user: {
+          id: user.userId,
+          email: user.email,
+          name: user.name,
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: true, message: "Internal server error", data: null });
+  }
+};
+
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
+  res.status(200).json({ error: false, message: "Logged out successfully", data: null });
 };

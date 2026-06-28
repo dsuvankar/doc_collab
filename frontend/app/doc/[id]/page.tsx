@@ -11,6 +11,7 @@ import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { docService } from "../../../services/docService";
+import { authService } from "../../../services/authService";
 import { Save, Loader2, History, ArrowLeft, Trash2, Share2, Menu, X, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -25,13 +26,13 @@ interface Version {
 export default function DocumentEditor() {
   const params = useParams();
   const docId = params.id as string;
-  const { isAuthenticated, token } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const router = useRouter();
   
   // Yjs Hooks
   const { ydoc, ytext, isLoaded } = useYDoc(docId);
-  const { isOnline, isReconnecting, connectionError, saveVersion } = useSync(docId, token, ydoc, () => {
+  const { isOnline, isReconnecting, connectionError, saveVersion } = useSync(docId, ydoc, () => {
     // When someone saves a version, instantly refetch history if panel is open!
     if (isSidebarOpenRef.current) fetchVersions();
   });
@@ -52,20 +53,20 @@ export default function DocumentEditor() {
   }, [isSidebarOpen]);
 
   useEffect(() => {
-    if (isAuthenticated === false && token === null) {
+    if (!isLoading && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isAuthenticated, token, router]);
+  }, [isAuthenticated, isLoading, router]);
 
   useEffect(() => {
-    if (!token || !isSidebarOpen) return;
+    if (!isAuthenticated || !isSidebarOpen) return;
     fetchVersions();
-  }, [token, isSidebarOpen]);
+  }, [isAuthenticated, isSidebarOpen]);
 
   const fetchVersions = async () => {
-    if (!token) return;
+    if (!isAuthenticated) return;
     try {
-      const json = await docService.getVersions(docId, token);
+      const json = await docService.getVersions(docId);
       setVersions(json.data);
     } catch (err) {}
   };
@@ -81,9 +82,9 @@ export default function DocumentEditor() {
   };
 
   const handleRestore = async (versionId: number) => {
-    if (!token) return;
+    if (!isAuthenticated) return;
     try {
-      await docService.restoreVersion(docId, versionId, token);
+      await docService.restoreVersion(docId, versionId);
       toast.success("Document restored to past version!");
     } catch (err) {
       toast.error("Failed to restore");
@@ -91,11 +92,11 @@ export default function DocumentEditor() {
   };
 
   const handleDeleteVersion = async (versionId: number) => {
-    if (!token) return;
+    if (!isAuthenticated) return;
     // Optimistic delete
     setVersions((prev) => prev.filter((v) => v.id !== versionId));
     try {
-      await docService.deleteVersion(docId, versionId, token);
+      await docService.deleteVersion(docId, versionId);
       toast.success("Checkpoint deleted.");
     } catch (err) {
       toast.error("Failed to delete checkpoint.");
@@ -133,12 +134,13 @@ export default function DocumentEditor() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authService.logout();
     dispatch(logout());
     router.push("/login");
   };
 
-  if (!isAuthenticated) return null;
+  if (isLoading || !isAuthenticated) return null;
 
   return (
     <div className="flex h-screen flex-col bg-transparent text-zinc-900 overflow-hidden">

@@ -6,7 +6,6 @@ import * as Y from "yjs";
 
 export function useSync(
   docId: string,
-  token: string | null,
   ydoc: Y.Doc | null,
   onVersionSaved?: () => void
 ) {
@@ -35,10 +34,10 @@ export function useSync(
 
   // Socket lifecycle effect
   useEffect(() => {
-    if (!docId || !token) return;
+    if (!docId) return;
 
     const socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080", {
-      auth: { token },
+      withCredentials: true,
       // Retry indefinitely with backoff
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
@@ -174,7 +173,7 @@ export function useSync(
       setIsReconnecting(false);
       setConnectionError(null);
     };
-  }, [docId, token]); // ← ydoc intentionally excluded
+  }, [docId]); // ← ydoc intentionally excluded
 
   // Yjs update handler effect
   useEffect(() => {

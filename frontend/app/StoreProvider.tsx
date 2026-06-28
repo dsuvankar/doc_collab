@@ -2,9 +2,10 @@
 import { useRef } from 'react';
 import { Provider } from 'react-redux';
 import { makeStore, AppStore } from '../store/store';
-import { logout } from '../store/features/authSlice';
+import { logout, setCredentials, setLoading } from '../store/features/authSlice';
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { authService } from '../services/authService';
 
 export default function StoreProvider({
   children,
@@ -13,7 +14,6 @@ export default function StoreProvider({
 }) {
   const storeRef = useRef<AppStore>(null);
   if (!storeRef.current) {
-    //Create store 
     storeRef.current = makeStore();
   }
 
@@ -21,6 +21,24 @@ export default function StoreProvider({
   const pathname = usePathname();
 
   useEffect(() => {
+    let mounted = true;
+
+    const checkAuth = async () => {
+      if (!storeRef.current) return;
+      try {
+        const json = await authService.fetchMe();
+        if (mounted) {
+          storeRef.current.dispatch(setCredentials({ user: json.data.user }));
+        }
+      } catch (err) {
+        if (mounted) {
+          storeRef.current.dispatch(logout());
+        }
+      }
+    };
+
+    checkAuth();
+
     const handleUnauthorized = () => {
       if (storeRef.current) {
         storeRef.current.dispatch(logout());

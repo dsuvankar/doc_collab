@@ -3,6 +3,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.js";
 import docsRouter from "./routes/docs.js";
 import { socketAuth } from "./middleware/socketAuth.js";
@@ -16,15 +17,17 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   maxHttpBufferSize: 1e6, // 1MB limit
   cors: {
-    origin: "*", 
+    origin: true,
+    credentials: true,
     methods: ["GET", "POST"],
   },
 });
 
 app.set("io", io);
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 app.use("/api/auth", authRouter);
 app.use("/api/docs", docsRouter);

@@ -10,6 +10,8 @@ import { Input } from "../../components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../components/ui/card";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useEffect } from "react";
+import { useAppSelector } from "../../store/hooks";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,6 +19,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push("/");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +34,7 @@ export default function LoginPage() {
     try {
       const json = await authService.login({ email, password });
 
-      dispatch(setCredentials({ user: json.data.user, token: json.data.token }));
+      dispatch(setCredentials({ user: json.data.user }));
       toast.success("Welcome back!");
       router.push("/");
     } catch (err: any) {
