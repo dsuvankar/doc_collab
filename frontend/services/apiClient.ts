@@ -10,8 +10,17 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
     },
   });
 
-  const json = await res.json();
+  let json;
+  try {
+    json = await res.json();
+  } catch (err) {
+    json = { message: "An error occurred" };
+  }
+
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new Event('auth:unauthorized'));
+    }
     throw new Error(json.message || "An error occurred");
   }
 

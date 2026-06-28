@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAppSelector } from "../../../store/hooks";
+import { useAppSelector, useAppDispatch } from "../../../store/hooks";
+import { logout } from "../../../store/features/authSlice";
 import { useYDoc } from "../../../hooks/useYDoc";
 import { useSync } from "../../../hooks/useSync";
 import { useTextarea } from "../../../hooks/useTextarea";
@@ -10,7 +11,7 @@ import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { docService } from "../../../services/docService";
-import { Save, Loader2, History, ArrowLeft, Trash2, Share2, Menu, X } from "lucide-react";
+import { Save, Loader2, History, ArrowLeft, Trash2, Share2, Menu, X, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -25,6 +26,7 @@ export default function DocumentEditor() {
   const params = useParams();
   const docId = params.id as string;
   const { isAuthenticated, token } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
   const router = useRouter();
   
   // Yjs Hooks
@@ -51,10 +53,7 @@ export default function DocumentEditor() {
 
   useEffect(() => {
     if (isAuthenticated === false && token === null) {
-      const timer = setTimeout(() => {
-        if (!localStorage.getItem("authToken")) router.push("/login");
-      }, 100);
-      return () => clearTimeout(timer);
+      router.push("/login");
     }
   }, [isAuthenticated, token, router]);
 
@@ -132,6 +131,11 @@ export default function DocumentEditor() {
         toast.error("Failed to copy link");
       }
     }
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+    router.push("/login");
   };
 
   if (!isAuthenticated) return null;
@@ -214,6 +218,15 @@ export default function DocumentEditor() {
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Save Checkpoint
           </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-red-200 bg-red-50 hover:bg-red-100 text-red-700 ml-2"
+            onClick={handleLogout}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </Button>
         </div>
 
         <div className="md:hidden flex items-center relative">
@@ -253,6 +266,16 @@ export default function DocumentEditor() {
               >
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Save Checkpoint
+              </Button>
+              <div className="border-t border-amber-100 my-1"></div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="justify-start border-red-200 bg-red-50 hover:bg-red-100 text-red-700"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
               </Button>
             </div>
           )}

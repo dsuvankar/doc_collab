@@ -2,27 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "../store/hooks";
+import { useAppSelector, useAppDispatch } from "../store/hooks";
+import { logout } from "../store/features/authSlice";
 import { Button } from "../components/ui/button";
-import { FilePlus2, Loader2 } from "lucide-react";
+import { FilePlus2, Loader2, LogOut } from "lucide-react";
 import { docService } from "../services/docService";
 import { toast } from "sonner";
 
 export default function Dashboard() {
   const { isAuthenticated, user, token } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     //check auth
     if (isAuthenticated === false && token === null) {
-      //hydration check
-      const timer = setTimeout(() => {
-        if (!localStorage.getItem("authToken")) {
-          router.push("/login");
-        }
-      }, 100);
-      return () => clearTimeout(timer);
+      router.push("/login");
     }
   }, [isAuthenticated, token, router]);
 
@@ -41,6 +37,11 @@ export default function Dashboard() {
     }
   };
 
+  const handleLogout = () => {
+    dispatch(logout());
+    router.push("/login");
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -50,7 +51,14 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen p-8 max-w-5xl mx-auto flex flex-col items-center justify-center">
+    <div className="min-h-screen p-8 max-w-5xl mx-auto flex flex-col items-center justify-center relative">
+      <div className="absolute top-4 right-4 sm:top-8 sm:right-8">
+        <Button variant="ghost" className="text-zinc-500 hover:text-zinc-900" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
+      </div>
+      
       <div className="text-center space-y-6">
         <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
           Welcome back, {user?.name || "User"}!
