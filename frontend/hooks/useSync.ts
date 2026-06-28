@@ -62,8 +62,6 @@ export function useSync(
       }
     };
 
-    const hasConnectedRef = { current: false };
-
     socket.on("connect", () => {
       // Cancel timers
       cancelDisconnectTimer();
@@ -71,15 +69,6 @@ export function useSync(
       setIsOnline(true);
       setIsReconnecting(false);
       setIsConnected(true);
-      setConnectionError(null);
-
-      if (hasConnectedRef.current) {
-        // Reconnect after going offline — reload so the merged doc state is fresh
-        window.location.reload();
-        return;
-      }
-
-      hasConnectedRef.current = true;
       socket.emit("join_doc", docId);
     });
 
@@ -106,7 +95,7 @@ export function useSync(
         // Mark disconnected after 8s
         setIsConnected(false);
         disconnectTimerRef.current = null;
-      }, 8000);
+      }, 1000);
     });
 
     // Handle connection errors
@@ -125,10 +114,7 @@ export function useSync(
       console.error("[useSync] Socket connect_error:", message);
     });
 
-    // NOTE: socket.on("connect") already fires on every reconnect in socket.io v4.
-    // A separate "reconnect" handler would cause a duplicate join_doc + load_doc,
-    // leading to a spurious second push_update that corrupts offline sync.
-
+    
     socket.on("version_saved", () => {
       onVersionSavedRef.current?.();
     });
@@ -194,10 +180,18 @@ export function useSync(
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // Refresh page when coming back online
+    const handleOnline = () => {
+      console.log("[useSync] Browser came back online. Reloading page...");
+      window.location.reload();
+    };
+    window.addEventListener("online", handleOnline);
+
     return () => {
       cancelDisconnectTimer();
       cancelOnlineTimer();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", handleOnline);
       socket.disconnect();
       socketRef.current = null;
       setIsOnline(false);
