@@ -49,7 +49,7 @@ export default function Dashboard() {
         <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
       </div>
     );
-  }
+  } 
 
   return (
     <div className="min-h-screen p-8 max-w-5xl mx-auto flex flex-col items-center justify-center relative">

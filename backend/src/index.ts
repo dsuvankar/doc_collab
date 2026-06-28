@@ -17,7 +17,7 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   maxHttpBufferSize: 1e6, // 1MB limit
   cors: {
-    origin: true,
+    origin: (origin, callback) => callback(null, true),
     credentials: true,
     methods: ["GET", "POST"],
   },
@@ -25,7 +25,7 @@ const io = new Server(httpServer, {
 
 app.set("io", io);
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: (origin, callback) => callback(null, true), credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
